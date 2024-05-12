@@ -6,45 +6,60 @@ import (
 	"os"
 	"io"
 	"bufio"
+	"bytes"
+	"strconv"
 )
 
 var (
 	cFlag bool
+	lFlag bool
 )
 
-func countBytes(r io.Reader) (int, error) {
+func countBytes(r io.Reader, countLines bool) (int, int, error) {
 	buf := make([]byte, 4096)
-	count := 0
+	bytesCount := 0
+	lineSep := []byte{'\n'}
+	linesCount := 0
 	for {
 		n, err := r.Read(buf)
-		count += n
+		bytesCount += n
+		if countLines {
+			linesCount += bytes.Count(buf[:n], lineSep)
+		}
 		if err == io.EOF {
-			return count, nil 
+			return bytesCount, linesCount, nil 
 		}
 		if err != nil {
-			return count, err
+			return bytesCount, linesCount, err
 		}
 	}
 }
 
 func main() {
-	flag.BoolVar(&cFlag, "c", false, "Count the number of  bytes in file")
+	flag.BoolVar(&cFlag, "c", false, "Count the number of bytes in file")
+	flag.BoolVar(&lFlag, "l", false, "Count the number of lines in file")
 	flag.Parse()
 	arguments := flag.Args()
 	if len(arguments) != 1 {
 		panic("invalid number of arguments")
 	}
 	filename := arguments[0]
-	fmt.Println(arguments)
 	f, err := os.Open(filename)
 	if err != nil {
 		panic("failed to open a file")
 	}
 	defer f.Close()
 	reader := bufio.NewReader(f)
-	bytes, err := countBytes(reader)
+	bytes, lines, err := countBytes(reader, lFlag)
 	if err != nil {
 		panic("failed to count number of bytes")
 	}
-	fmt.Println("%d %s", bytes, filename)
+	result := ""
+	if cFlag {
+		result += " " + strconv.Itoa(bytes)
+	}
+	if lFlag {
+		result += " " + strconv.Itoa(lines)
+	}
+	fmt.Println("", result, filename)
 }
