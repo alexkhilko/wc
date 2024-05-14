@@ -17,7 +17,7 @@ var (
 	mFlag bool
 )
 
-func getFileCounts(file *os.File, countLines, countWords bool) (int, int, int, int, error) {
+func getFileCounts(file *os.File) (int, int, int, int, error) {
 	const lineSep = '\n'
 	bytesCount := 0
 	linesCount := 0
@@ -36,21 +36,34 @@ func getFileCounts(file *os.File, countLines, countWords bool) (int, int, int, i
 		}
 		charCount++
 		bytesCount += size
-		if countLines && r == lineSep {
+		if r == lineSep {
 			linesCount += 1
 		}
-		if countWords {
-			if unicode.IsSpace(r) {
-				curWord = false
-			} else {
-				if !curWord {
-					wordCount++
-				}
-				curWord = true
+		if unicode.IsSpace(r) {
+			curWord = false
+		} else {
+			if !curWord {
+				wordCount++
 			}
+			curWord = true
 		}
 	}
 }
+
+func checkStdinIsNotEmpty() bool {
+	file := os.Stdin
+	fi, err := file.Stat()
+	if err != nil {
+		return false
+	}
+	size := fi.Size()
+	if size > 0 {
+		return true
+	} else {
+		return false
+	}
+}
+
 
 func main() {
 	flag.BoolVar(&cFlag, "c", false, "Count the number of bytes in file")
@@ -64,17 +77,24 @@ func main() {
 		wFlag = true
 		mFlag = true
 	}
-	arguments := flag.Args()
-	if len(arguments) != 1 {
-		panic("invalid number of arguments")
-	}
-	filename := arguments[0]
-	f, err := os.Open(filename)
-	if err != nil {
-		panic("failed to open a file")
+	var f *os.File
+	var err error
+	filename := ""
+	if checkStdinIsNotEmpty() {
+		f = os.Stdin
+	} else {
+		arguments := flag.Args()
+		filename := arguments[0]
+		if len(arguments) != 1 {
+			panic("invalid number of arguments")
+		}
+		f, err = os.Open(filename)
+		if err != nil {
+			panic("failed to open a file")
+		}
 	}
 	defer f.Close()
-	bytes, lines, words, chars, err := getFileCounts(f, lFlag, wFlag)
+	bytes, lines, words, chars, err := getFileCounts(f)
 	if err != nil {
 		panic("failed to count number of bytes")
 	}
